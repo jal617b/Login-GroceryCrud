@@ -2,7 +2,6 @@
 $loginConfig = array(
 	"Page After Login" => "/",
 	"Error Message" => "Your Username or Password are incorrect!",
-	"Use MD5 Encryption" => false,
 	"Show Permission Management Tips" => true, //suggested
 );
 
@@ -40,13 +39,12 @@ class Login extends CI_Controller {
 		
 		$username = $this->input->post('username');
 		$password = $this->input->post('password');
-		if($loginConfig['Use MD5 Encryption']) $password = md5($password);
+		 
+		//Replaced md5 hashing with  password_verify. NOTE: Passwords must run through password_hash on account creation
+       		$this->db->where("username",$username);
+        	$query = $this->db->get("crud_users");
 		
-       	$this->db->where("username",$username);
-        $this->db->where("password",$password);
-        $query = $this->db->get("crud_users");
-		
-		if ($query->num_rows() == 1) {
+		if ($query->num_rows() == 1 && password_verify($password,$query->row()->password)) {
 			$name = $query->row()->username;
 			$permissions = (isset($query->row()->permissions)?$query->row()->permissions:"");
 			$data = json_encode(array("id"=>$query->row()->id,"permissions"=>$query->row()->permissions,"username"=>$query->row()->username));
@@ -74,10 +72,11 @@ class Login extends CI_Controller {
 			$this->db->query("CREATE TABLE crud_users (
 				id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
 				username VARCHAR(70) NOT NULL,
-				password VARCHAR(70) NOT NULL,
+				password VARCHAR(255) NOT NULL, /
 				permissions VARCHAR(255)
 			)");
-			$this->db->query("INSERT INTO crud_users (username,password,permissions) VALUES ('admin','admin','1')");
+			$pw_hash = password_hash('admin',PASSWORD_DEFAULT);
+			$this->db->query("INSERT INTO crud_users (username,password,permissions) VALUES ('admin',$pw_hash,'1')");
 			echo "The table 'crud_users' was successfully created!<br/>An admin user was created too. Login with:<br/>- username 'admin'<br/>- password 'admin'<br/>AND DON'T FORGET TO DELETE THIS USER! IS YOUR RESPONSIBILITY!<br/>Really, delete it as soon as you can (or at least change the password)!";
 			echo '<p><a href="'.base_url().'login"><button>Go to the Login Page</button></a></p>'; 
 		}
